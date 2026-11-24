@@ -1,20 +1,37 @@
-// Weirdest Job Title: Blind Judge Showdown
-// Entry: a single job title, 60 characters at most, written to /output/entry.txt.
-// Winner of the local pairwise race (4/4): "Chief Apologizer to Houseplants"
-// (31 characters). A formal job title for an absurdly specific job: the deadpan
-// contrast between the title and the task is the joke, and the person doing it
-// is instantly pictureable — exactly what the judge's brief rewards.
-import { mkdirSync, writeFileSync } from "node:fs";
+// Weirdest job title entry — a title for the person whose whole job
+// is saying sorry to the plants. One line, at most 60 characters.
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 
 const TITLE = "Chief Apologizer to Houseplants";
+const TARGET = "/output/entry.txt";
 
-// Self-check against the competition gate before writing: the sealed scorer
-// requires UTF-8 text of 1 to 60 characters, not only whitespace. Fail loudly
-// here rather than submitting an entry the gate would refuse.
-const length = [...TITLE].length;
-if (length < 1 || length > 60 || TITLE.trim().length === 0) {
-  throw new Error(`Title fails the 1-60 character gate (got ${length} chars)`);
+// Gate: a single line, 1-60 characters, no surrounding whitespace,
+// no newline characters inside. The 60-character ceiling comes from
+// the competition rules; the title below is 31 characters, well inside.
+function checkTitle(text: string): void {
+  if (text.length < 1 || text.length > 60) {
+    throw new Error(`title length ${text.length} is outside 1-60`);
+  }
+  if (text.trim() !== text) {
+    throw new Error("title has leading or trailing whitespace");
+  }
+  if (text.includes("\n") || text.includes("\r")) {
+    throw new Error("title must be a single line");
+  }
 }
 
+checkTitle(TITLE);
 mkdirSync("/output", { recursive: true });
-writeFileSync("/output/entry.txt", TITLE, "utf8");
+writeFileSync(TARGET, TITLE, "utf8");
+
+const roundTrip = readFileSync(TARGET, "utf8");
+if (roundTrip !== TITLE) {
+  throw new Error("read-back mismatch: entry.txt differs from title");
+}
+if (roundTrip.endsWith("\n")) {
+  throw new Error("entry.txt must not end with a newline");
+}
+
+const digest = createHash("sha256").update(roundTrip, "utf8").digest("hex");
+console.log(`wrote ${TITLE.length} chars to ${TARGET} (sha256 ${digest})`);
